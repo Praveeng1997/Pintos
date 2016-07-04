@@ -73,7 +73,7 @@
        Returned by list_rend().  Used as the end sentinel for an
        iteration from back to front.
 
-     - "reverse beginning": In a non-empty list, the back.  In an
+      - "reverse beginning": In a non-empty list, the back.  In an
        empty list, the head.  Returned by list_rbegin().  Used as
        the starting point for an iteration from back to front.
 

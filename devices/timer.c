@@ -34,6 +34,7 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+static void wakeup(struct thread *, void *aux);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -96,10 +97,14 @@ timer_sleep (int64_t ticks)
 {
   int64_t start = timer_ticks ();
 
-  ASSERT (intr_get_level () == INTR_ON);
+    ASSERT (intr_get_level () == INTR_ON);
   /*  while (timer_elapsed (start) < ticks) 
       thread_yield ();*/
-  thread->sleep_time = ticks;
+  thread_current()->sleep_time = ticks;
+  enum intr_level old_level = intr_disable();
+  // printf("blocking thread\n");
+  thread_block();
+  intr_set_level(old_level);
   
 }
 
@@ -179,6 +184,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  thread_foreach(wakeup,0);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -251,3 +257,23 @@ real_time_delay (int64_t num, int32_t denom)
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
 }
+
+/*function to decrease the sleeptime if it is blocked*/
+static void 
+wakeup(struct thread *t,void *aux)
+{
+  // printf("error %s\n",t->status);
+  if(t->status == THREAD_BLOCKED)
+    {
+      //  printf("blocked\n");
+      if(t->sleep_time > 0)
+	{
+	  t->sleep_time--;
+	}
+      if(t->sleep_time == 0)
+	{
+	  thread_unblock(t);
+	}
+    }
+}  
+

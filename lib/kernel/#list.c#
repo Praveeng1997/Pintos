@@ -1,6 +1,5 @@
 #include "list.h"
 #include "../debug.h"
-#include "threads/thread.h"
 
 /* Our doubly linked lists have two header elements: the "head"
    just before the first element and the "tail" just after the
@@ -524,11 +523,12 @@ list_min (struct list *list, list_less_func *less, void *aux)
   return min;
 }
 /*POOJITH Function to check the priority and return a 1 if a>b*/
-bool check_priority(struct list_elem *a,struct list_elem *b,void * aux)
+static bool check_priority(struct list_elem *a,struct list_elem *b,void * aux)
 {
-  struct thread *x=list_entry(a,struct thread,elem);
-  struct thread *y=list_entry(b,struct thread,elem);
-  if(x->priority >= y->priority)
+  struct thread *x,*y;
+  *x=list_entry(a,struct thread, list_elem);
+  *y=list_entry(b,struct thread,struct list_elem);
+  if(x->priority>y->priority)
     {
       return(1);
     }

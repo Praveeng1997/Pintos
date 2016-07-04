@@ -1,3 +1,4 @@
+//#include "threads/interrupt.c"
 #include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
@@ -13,6 +14,7 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "list.c"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -183,6 +185,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  t->sleep_time = -1;
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -245,8 +248,12 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  // list_push_back (&ready_list, &t->elem);
+  list_insert_ordered(&ready_list,&t->elem,check_priority,NULL);
   t->status = THREAD_READY;
+  // in_external_intr = true;
+  if(!intr_context())
+    thread_yield();
   intr_set_level (old_level);
 }
 
@@ -316,7 +323,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered (&ready_list, &cur->elem,check_priority,NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -344,6 +351,8 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  if(!intr_context())
+    thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -496,7 +505,7 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    return list_entry(list_pop_front (&ready_list),struct thread,elem );
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -555,10 +564,12 @@ thread_schedule_tail (struct thread *prev)
 static void
 schedule (void) 
 {
+  // if(!list_empty (&ready_list))
+  // {
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
-
+  //  printf("priority of current thread is \n");
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
@@ -566,6 +577,8 @@ schedule (void)
   if (cur != next)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
+  // }
+// else printf("error\n");
 }
 
 /* Returns a tid to use for a new thread. */
