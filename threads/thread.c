@@ -22,9 +22,7 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
-/* List of processes in THREAD_READY state, that is, processes
-   that are ready to run but not actually running. */
-static struct list ready_list;
+
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -92,6 +90,8 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
+  tid_lock.val=1;
+  msg("zzzzzzzzzzzz");
   list_init (&ready_list);
   list_init (&all_list);
 
@@ -252,7 +252,7 @@ thread_unblock (struct thread *t)
   list_insert_ordered(&ready_list,&t->elem,check_priority,NULL);
   t->status = THREAD_READY;
   // in_external_intr = true;
-  if(!intr_context())
+   if(!intr_context())
     thread_yield();
   intr_set_level (old_level);
 }
@@ -477,6 +477,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  // t->def_priority = priority;//POOJITH
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }
@@ -598,3 +599,13 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+
+/*POOJITH function to remove an element from ready list and add it according to its priority*/
+void list_reinsert_ordered (struct list_elem *elem)
+{
+  list_remove(elem);
+  list_entry(elem,struct thread,elem )->status=THREAD_READY;
+  list_insert_ordered(&ready_list,elem,check_priority,NULL);
+ }

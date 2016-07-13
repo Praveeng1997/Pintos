@@ -176,10 +176,13 @@ void
 lock_init (struct lock *lock)
 {
   ASSERT (lock != NULL);
-
+  lock->def_priority=31;
+  lock->val = 0;
   lock->holder = NULL;
+  list_init(&lock->list_waiter);
   sema_init (&lock->semaphore, 1);
 }
+
 
 /* Acquires LOCK, sleeping until it becomes available if
    necessary.  The lock must not already be held by the current
@@ -195,28 +198,49 @@ lock_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-  struct thread *cur_thr = thread_current();
-  //  printf("lock_acquire\n");
-  //  if(lock->holder != NULL)
-  //  {
-  //   struct thread *lck_thr = lock->holder;
-      /* if(cur_thr->priority > lck_thr->priority)
-      	{
-	  int temp;
-	  //  temp=lck_thr->priority;
-	  lck_thr->priority=cur_thr->priority;
-	  //  cur_thr->priority=temp;
-	  //	  lock_release(lock);
-	}
-      sema_down(&lock->semaphore);
-      lock->holder = thread_current();
-      }
-  else
-  {*/
+  if(lock->val==0)
+    {
+  struct list_elem *new_list_elem=(struct list_elem *)malloc(sizeof(struct list_elem)+5);
+  new_list_elem->waiting_thread=thread_current();
+  if(list_empty(&lock->list_waiter))
+    {
+      list_push_front(&lock->list_waiter,new_list_elem);
       sema_down (&lock->semaphore);
       lock->holder = thread_current ();
-      // }
+    }
+    else
+      {
+	/*struct list_elem *temp_list_elem=list_begin(&lock->list_waiter);
+	  while(temp_list_elem->waiting_thread->status==THREAD_BLOCKED)
+	  {
+	    temp_list_elem=list_next(temp_list_elem);
+	    }*/
+	struct thread *old_thread = lock->holder;
+	list_insert_ordered(&lock->list_waiter,new_list_elem,check_priority_lock,NULL);
+	if(old_thread->priority<thread_current()->priority)
+	  {
+	    int old_level = intr_disable();
+	    lock->holder = old_thread;
+	    lock->def_priority=old_thread->priority;
+	    old_thread->priority=thread_current()->priority;
+	    list_reinsert_ordered(&old_thread->elem);
+	    thread_block();
+	    intr_set_level(old_level);
+	  }
+	else
+	  {
+	    sema_down (&lock->semaphore);
+	    lock->holder = thread_current();
+	  }
+      }
+    }
+  else if(lock->val == 1)
+    {
+      sema_down (&lock->semaphore);
+      lock->holder = thread_current();
+    }
 }
+
 
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -248,9 +272,31 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-
-  lock->holder = NULL;
-  sema_up (&lock->semaphore);
+  if(lock->val==0)
+    {
+  struct list_elem *temp_list_elem = list_begin(&lock->list_waiter);
+  while(temp_list_elem->waiting_thread->tid != thread_current()->tid)
+    temp_list_elem = list_next(temp_list_elem);
+  list_remove(temp_list_elem);
+  free(temp_list_elem);
+  thread_current()->priority = lock->def_priority;
+  
+  if(list_empty(&lock->list_waiter))
+    {
+      lock->holder = NULL;
+      sema_up (&lock->semaphore);
+    }
+    else
+      {
+	lock->holder = list_begin(&lock->list_waiter)->waiting_thread;
+	thread_unblock(list_begin(&lock->list_waiter)->waiting_thread);
+      }
+    }
+  else
+    {
+       lock->holder = NULL;
+      sema_up (&lock->semaphore);
+    }
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -354,3 +400,81 @@ cond_broadcast (struct condition *cond, struct lock *lock)
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
 }
+
+
+
+
+//UNWANTED COMMENTED AREA
+
+
+
+  //  struct thread *top_thread;
+  //  printf("lock_acquire\n");
+  // if(thread_current()->lockelem.next!=NULL && thread_current()->lockelem.prev!=NULL)
+  // msg("error is here");
+  /* if(!list_empty(&lock->list_waiter))
+    {
+      //   struct thread *top_thread=list_entry(list_begin(&lock->list_waiter),struct thread,elem);
+      struct thread *old_top_thread=list_entry(list_begin(&lock->list_waiter),struct thread,lockelem);
+        while(old_top_thread->status==THREAD_BLOCKED)
+	{
+	  //  msg("old_top_thread");
+	  struct list_elem *new=list_next(&old_top_thread->lockelem);
+	  old_top_thread=list_entry(new,struct thread,lockelem);
+        }
+	msg("zzz");  
+      list_insert_ordered(&lock->list_waiter,&thread_current()->lockelem,check_priority_lock,NULL);
+      
+      if(old_top_thread->priority==thread_current()->priority)
+	{
+	  sema_down(&lock->semaphore);
+	  lock->holder = thread_current(); 
+	}
+      else
+	{
+	  int old_level = intr_disable();
+	  old_top_thread->priority=thread_current()->priority;
+	  list_reinsert_ordered(&old_top_thread->elem);
+	  thread_block();
+	  intr_set_level(old_level);
+	}
+      }
+  else
+  {*/
+  // list_push_back(&lock->list_waiter,&thread_current()->lockelem);
+
+
+
+
+
+
+
+
+
+
+
+ /*  list_remove(&thread_current()->lockelem);
+   thread_current()->lockelem.next=NULL;
+   thread_current()->lockelem.prev=NULL;
+   if(list_empty(&lock->list_waiter))
+     {
+       
+     }
+     else
+       {
+	 if(thread_current()->priority!=thread_current()->def_priority)//check if priority is donated
+	   {
+	     thread_current()->priority=thread_current()->def_priority;//change the priority to its default value
+       // if(!list_empty(&lock->list_waiter))
+       //	 {
+	     thread_unblock(list_entry(list_pop_front(&lock->list_waiter),struct thread, lockelem));
+	 
+	   //	 }
+	   //    else
+	   //	 thread_yield();
+       list_remove(&old_top_thread->elem);
+      list_insert_ordered(&lock->list_waiter,&thread_current()->lockelem,check_priority,NULL);
+      thread_yield ();*/
+      //thread_set_priority(thread_current()->def_priority);
+  //	   }
+//      }

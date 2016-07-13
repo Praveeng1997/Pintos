@@ -64,6 +64,7 @@ void
 console_init (void) 
 {
   lock_init (&console_lock);
+  console_lock.val=1;
   use_console_lock = true;
 }
 

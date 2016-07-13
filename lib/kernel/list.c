@@ -454,10 +454,14 @@ list_insert_ordered (struct list *list, struct list_elem *elem,
   ASSERT (less != NULL);
 
   for (e = list_begin (list); e != list_end (list); e = list_next (e))
+    /*    if(e == NULL)
+	  msg("wrong here");*/
     if (less (elem, e, aux))
       break;
   return list_insert (e, elem);
 }
+
+
 
 /* Iterates through LIST and removes all but the first in each
    set of adjacent elements that are equal according to LESS
@@ -528,6 +532,19 @@ bool check_priority(struct list_elem *a,struct list_elem *b,void * aux)
 {
   struct thread *x=list_entry(a,struct thread,elem);
   struct thread *y=list_entry(b,struct thread,elem);
+  if(x->priority >= y->priority)
+    {
+      return(1);
+    }
+  else 
+    return(0);
+}
+/*POOJITH Function to check the priority and return a 1 if a>b*/
+//for lockelem
+bool check_priority_lock(struct list_elem *a,struct list_elem *b,void * aux)
+{
+  struct thread *x=a->waiting_thread;
+  struct thread *y=b->waiting_thread;
   if(x->priority >= y->priority)
     {
       return(1);

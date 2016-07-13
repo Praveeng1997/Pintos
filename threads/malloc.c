@@ -81,6 +81,7 @@ malloc_init (void)
       d->blocks_per_arena = (PGSIZE - sizeof (struct arena)) / block_size;
       list_init (&d->free_list);
       lock_init (&d->lock);
+      d->lock.val=1;
     }
 }
 

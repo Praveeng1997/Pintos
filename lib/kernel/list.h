@@ -91,6 +91,7 @@ struct list_elem
   {
     struct list_elem *prev;     /* Previous list element. */
     struct list_elem *next;     /* Next list element. */
+    struct thread *waiting_thread;  //POOJITH store threads
   };
 
 /* List. */
@@ -160,6 +161,7 @@ bool list_empty (struct list *);
 void list_reverse (struct list *);
 //POOJITH
 bool check_priority(struct list_elem *,struct list_elem *,void *);
+bool check_priority_lock(struct list_elem *,struct list_elem *,void *);
 
 /* Compares the value of two list elements A and B, given
    auxiliary data AUX.  Returns true if A is less than B, or

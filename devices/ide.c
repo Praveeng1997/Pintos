@@ -124,6 +124,7 @@ ide_init (void)
           NOT_REACHED ();
         }
       lock_init (&c->lock);
+      c->lock.val =1;
       c->expecting_interrupt = false;
       sema_init (&c->completion_wait, 0);
  

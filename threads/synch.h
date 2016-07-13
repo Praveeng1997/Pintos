@@ -22,6 +22,9 @@ struct lock
   {
     struct thread *holder;      /* Thread holding lock (for debugging). */
     struct semaphore semaphore; /* Binary semaphore controlling access. */
+    struct list list_waiter;    // POOJITH list of waiting threads
+    int val;                    // POOJITH rectify malloc
+    int def_priority;           // POOJITH store the priority of thread before donating
   };
 
 void lock_init (struct lock *);

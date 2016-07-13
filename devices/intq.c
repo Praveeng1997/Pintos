@@ -11,6 +11,7 @@ void
 intq_init (struct intq *q) 
 {
   lock_init (&q->lock);
+  q->lock.val = 1;
   q->not_full = q->not_empty = NULL;
   q->head = q->tail = 0;
 }

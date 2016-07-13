@@ -4,6 +4,9 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+/* List of processes in THREAD_READY state, that is, processes
+   that are ready to run but not actually running. */
+static struct list ready_list;
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -88,10 +91,12 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    // int def_priority;                   //priority of the thread when created
     struct list_elem allelem;           /* List element for all threads list. */
     int sleep_time;                     /*Amount of time to sleep*/ 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    //  struct list_elem lockelem;          //list element for locks
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -137,5 +142,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+void list_reinsert_ordered(struct list_elem*);
 
 #endif /* threads/thread.h */
+
