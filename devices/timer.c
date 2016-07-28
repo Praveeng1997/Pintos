@@ -99,16 +99,17 @@ void
 timer_sleep (int64_t ticks) 
 {
   int64_t start = timer_ticks ();
-
-    ASSERT (intr_get_level () == INTR_ON);
-    while (timer_elapsed (start) < ticks) 
-      thread_yield ();
-    thread_current()->wakeup_time = ticks+timer_ticks();
-    enum intr_level old_level = intr_disable();
-    //list_insert_ordered(&sleep_list,&thread_current()->elem,check_wakeup_time,NULL);
+  
+  ASSERT (intr_get_level () == INTR_ON);
+  /*  while (timer_elapsed (start) < ticks) 
+      thread_yield ();*/
+  thread_current()->wakeup_time = ticks+timer_ticks();
+  enum intr_level old_level = intr_disable();
+  //list_insert_ordered(&sleep_list,&thread_current()->elem,check_wakeup_time,NULL);
   // insert_sleep_list(&thread_current()->elem);
-    sema_down(&sleep_sema);
-    intr_set_level(old_level);
+  sleep_sema.sleep = 1;
+  sema_down(&sleep_sema);
+  intr_set_level(old_level);
   
 }
 
@@ -192,12 +193,18 @@ timer_interrupt (struct intr_frame *args UNUSED)
   //  struct list_elem *li = list_begin(&sleep_sema.waiters);
     struct thread *t = list_entry(list_begin(&sleep_sema.waiters),struct thread,elem);
      
-    if(t->wakeup_time<=ticks && t->wakeup_time!=-1 && t != NULL && t->magic == THREAD_MAGIC)
+    if(t->wakeup_time<=ticks && t->wakeup_time!=-1 && t != NULL && t->magic == THREAD_MAGIC && !list_empty(&sleep_sema.waiters))
 	{
-	  // msg("wakeup_time %d",&t->wakeup_time);
+	  // msg("name  %s",&t->name);
 	  // wakeup(list_entry(list_begin(&sleep_list),struct thread,elem),NULL);
 	  // list_reinsert_ordered(list_begin(&sleep_list));
 	  sema_up(&sleep_sema);
+	  t = list_entry(list_begin(&sleep_sema.waiters),struct thread,elem);
+	  /*  if(t->wakeup_time<=ticks && t->wakeup_time!=-1 && t != NULL && t->magic == THREAD_MAGIC)
+	    {
+	      msg("name  %s",&t->name);
+	      sema_up(&sleep_sema);
+	      }*/
 	  }
     // thread_yield();
 }

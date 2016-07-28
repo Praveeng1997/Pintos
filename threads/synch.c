@@ -48,6 +48,7 @@ sema_init (struct semaphore *sema, unsigned value)
 
   sema->value = value;
   list_init (&sema->waiters);
+  sema->sleep = 0;
 }
 int lock_flag = 0;
 /* Down or "P" operation on a semaphore.  Waits for SEMA's value
@@ -77,7 +78,11 @@ sema_down (struct semaphore *sema)
       // if(list_empty(&ready_list))
       // msg("error is here");
       /* list_remove(&thread_current()->elem);*/
+      if(sema->sleep == 0)
       list_insert_ordered(&sema->waiters, &thread_current ()->elem,check_priority,NULL);
+      else
+	 list_insert_ordered(&sema->waiters, &thread_current ()->elem,check_sleep_time,NULL);
+      
       // old_level = intr_disable ();
       thread_block ();
     }
@@ -127,11 +132,12 @@ sema_up (struct semaphore *sema)
 
       thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
-      sema->value++;
+      sema->sleep = 1;
+      //      sema->value++;
        if(!intr_context())
-	 thread_yield();
+	 	 thread_yield();
     }
-  else
+  // else
     sema->value++;
   intr_set_level (old_level);
 }
@@ -217,40 +223,40 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
   if(lock->val==0)
     {
-  struct list_elem *new_list_elem=(struct list_elem *)malloc(sizeof(struct list_elem)+5);
-  new_list_elem->waiting_thread=thread_current();
-  if(list_empty(&lock->list_waiter))
-    {
-      list_push_front(&lock->list_waiter,new_list_elem);
-      sema_down (&lock->semaphore);
-      lock->holder = thread_current ();
-    }
-    else
-      {
-	/*struct list_elem *temp_list_elem=list_begin(&lock->list_waiter);
-	  while(temp_list_elem->waiting_thread->status==THREAD_BLOCKED)
-	  {
+      struct list_elem *new_list_elem=(struct list_elem *)malloc(sizeof(struct list_elem)+5);
+      new_list_elem->waiting_thread=thread_current();
+      if(list_empty(&lock->list_waiter))
+	{
+	  list_push_front(&lock->list_waiter,new_list_elem);
+	  sema_down (&lock->semaphore);
+	  lock->holder = thread_current ();
+	}
+      else
+	{
+	  /*struct list_elem *temp_list_elem=list_begin(&lock->list_waiter);
+	    while(temp_list_elem->waiting_thread->status==THREAD_BLOCKED)
+	    {
 	    temp_list_elem=list_next(temp_list_elem);
 	    }*/
-	struct thread *old_thread = lock->holder;
-	list_insert_ordered(&lock->list_waiter,new_list_elem,check_priority_lock,NULL);
-	if(old_thread->priority<thread_current()->priority)
-	  {
-	    int old_level = intr_disable();
-	    lock->holder = old_thread;
-	    lock->def_priority=old_thread->priority;
-	    lock->high_priority=thread_current()->priority;
-	    old_thread->priority=thread_current()->priority;
-	    list_reinsert_ordered(&old_thread->elem);
-	    thread_block();
-	    intr_set_level(old_level);
-	  }
-	else
-	  {
-	    sema_down (&lock->semaphore);
-	    lock->holder = thread_current();
-	  }
-      }
+	  struct thread *old_thread = lock->holder;
+	  list_insert_ordered(&lock->list_waiter,new_list_elem,check_priority_lock,NULL);
+	  if(old_thread->priority<thread_current()->priority)
+	    {
+	      int old_level = intr_disable();
+	      lock->holder = old_thread;
+	      lock->def_priority=old_thread->priority;
+	      lock->high_priority=thread_current()->priority;
+	      old_thread->priority=thread_current()->priority;
+	      list_reinsert_ordered(&old_thread->elem);
+	      thread_block();
+	      intr_set_level(old_level);
+	    }
+	  else
+	    {
+	      sema_down (&lock->semaphore);
+	      lock->holder = thread_current();
+	    }
+	}
     }
   else if(lock->val == 1)
     {
@@ -291,53 +297,53 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
   struct thread *cur=thread_current();
-   if(lock->val==0)
-     {
-  if(cur->priority > lock->high_priority)
+  if(lock->val==0)
     {
-      lock->release_waiter.waiting_thread=cur;
-      lock->release_waiter.hold_lock=lock;
-      list_insert_ordered(&cur->lock_holder,&lock->release_waiter,check_priority_lock,NULL);
-    }
-
-    else
-    {
-     
-  struct list_elem *temp_list_elem = list_begin(&lock->list_waiter);
-  while(temp_list_elem->waiting_thread->tid != thread_current()->tid)
-    temp_list_elem = list_next(temp_list_elem);
-  list_remove(temp_list_elem);
-  free(temp_list_elem);
-  thread_current()->priority = lock->def_priority;
-  
-  if(list_empty(&lock->list_waiter))
-    {
-      lock->holder = NULL;
-      sema_up (&lock->semaphore);
-    }
-    else
-      {
-	 lock->holder = list_begin(&lock->list_waiter)->waiting_thread;
-	    thread_unblock(list_begin(&lock->list_waiter)->waiting_thread);
-	    if(lock_flag==0)
-	      {
-	while(!list_empty(&cur->lock_holder))
-	  {   
-	     lock_release(list_pop_front(&cur->lock_holder)->hold_lock);
-	  }
+      if(cur->priority > lock->high_priority)
+	{
+	  lock->release_waiter.waiting_thread=cur;
+	  lock->release_waiter.hold_lock=lock;
+	  list_insert_ordered(&cur->lock_holder,&lock->release_waiter,check_priority_lock,NULL);
+	}
+      
+      else
+	{
+	  
+	  struct list_elem *temp_list_elem = list_begin(&lock->list_waiter);
+	  while(temp_list_elem->waiting_thread->tid != thread_current()->tid)
+	    temp_list_elem = list_next(temp_list_elem);
+	  list_remove(temp_list_elem);
+	  free(temp_list_elem);
+	  thread_current()->priority = lock->def_priority;
+	  
+	  if(list_empty(&lock->list_waiter))
+	    {
+	      lock->holder = NULL;
+	      sema_up (&lock->semaphore);
+	    }
+	  else
+	    {
+	      lock->holder = list_begin(&lock->list_waiter)->waiting_thread;
+	      thread_unblock(list_begin(&lock->list_waiter)->waiting_thread);
+	      if(lock_flag==0)
+		{
+		  while(!list_empty(&cur->lock_holder))
+		    {   
+		      lock_release(list_pop_front(&cur->lock_holder)->hold_lock);
+		    }
 	lock_flag = 1;
 	int old_level = intr_disable();
 	if(!intr_context())
 	  thread_yield();
 	intr_set_level(old_level);
-	      }
-	   
-      }
+		}
+	      
+	    }
+	}
     }
-     }
   else
     {
-       lock->holder = NULL;
+      lock->holder = NULL;
       sema_up (&lock->semaphore);
     }
 }

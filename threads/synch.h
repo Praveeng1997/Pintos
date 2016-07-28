@@ -9,6 +9,7 @@ struct semaphore
   {
     unsigned value;             /* Current value. */
     struct list waiters;        /* List of waiting threads. */
+    int sleep;                   //POOJITH to determine when to sort according to sleep time
   };
 
 void sema_init (struct semaphore *, unsigned value);
