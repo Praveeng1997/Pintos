@@ -166,7 +166,6 @@ init_pool (struct pool *p, void *base, size_t page_cnt, const char *name)
   /* Initialize the pool. */
   lock_init (&p->lock);
   p->lock.val = 1;
-  msg("hmmmmmm");
   p->used_map = bitmap_create_in_buf (page_cnt, base, bm_pages * PGSIZE);
   p->base = base + bm_pages * PGSIZE;
 }

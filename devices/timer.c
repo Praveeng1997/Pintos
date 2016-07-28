@@ -24,6 +24,7 @@ static int64_t ticks;
 /*pedef struct {
   int value;
   struct*/
+static struct semaphore sleep_sema;
 
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
@@ -43,6 +44,8 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  
+  sema_init(&sleep_sema,0);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -98,13 +101,14 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
     ASSERT (intr_get_level () == INTR_ON);
-  /*  while (timer_elapsed (start) < ticks) 
-      thread_yield ();*/
-  thread_current()->sleep_time = ticks;
-  enum intr_level old_level = intr_disable();
-  // printf("blocking thread\n");
-  thread_block();
-  intr_set_level(old_level);
+    while (timer_elapsed (start) < ticks) 
+      thread_yield ();
+    thread_current()->wakeup_time = ticks+timer_ticks();
+    enum intr_level old_level = intr_disable();
+    //list_insert_ordered(&sleep_list,&thread_current()->elem,check_wakeup_time,NULL);
+  // insert_sleep_list(&thread_current()->elem);
+    sema_down(&sleep_sema);
+    intr_set_level(old_level);
   
 }
 
@@ -184,7 +188,18 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  thread_foreach(wakeup,0);
+  //  thread_wakeup_check ();
+  //  struct list_elem *li = list_begin(&sleep_sema.waiters);
+    struct thread *t = list_entry(list_begin(&sleep_sema.waiters),struct thread,elem);
+     
+    if(t->wakeup_time<=ticks && t->wakeup_time!=-1 && t != NULL && t->magic == THREAD_MAGIC)
+	{
+	  // msg("wakeup_time %d",&t->wakeup_time);
+	  // wakeup(list_entry(list_begin(&sleep_list),struct thread,elem),NULL);
+	  // list_reinsert_ordered(list_begin(&sleep_list));
+	  sema_up(&sleep_sema);
+	  }
+    // thread_yield();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -259,21 +274,13 @@ real_time_delay (int64_t num, int32_t denom)
 }
 
 /*function to decrease the sleeptime if it is blocked*/
-static void 
+/*static void 
 wakeup(struct thread *t,void *aux)
 {
   // printf("error %s\n",t->status);
-  if(t->status == THREAD_BLOCKED)
-    {
-      //  printf("blocked\n");
-      if(t->sleep_time > 0)
-	{
-	  t->sleep_time--;
-	}
-      if(t->sleep_time == 0)
-	{
-	  thread_unblock(t);
-	}
-    }
+  //t->status=THREAD_READY;
+  // list_remove(&t->elem);
+  //list_insert_ordered(&ready_list,&t->elem,check_priority,NULL);
+  // list_reinsert_ordered(&t->elem);
 }  
-
+*/

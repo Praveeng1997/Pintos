@@ -25,6 +25,8 @@ struct lock
     struct list list_waiter;    // POOJITH list of waiting threads
     int val;                    // POOJITH rectify malloc
     int def_priority;           // POOJITH store the priority of thread before donating
+    int high_priority;          // POOJITH store the highest priority
+    struct list_elem release_waiter;   //POOJITH for inserting locks in threads
   };
 
 void lock_init (struct lock *);

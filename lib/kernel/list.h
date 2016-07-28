@@ -92,6 +92,7 @@ struct list_elem
     struct list_elem *prev;     /* Previous list element. */
     struct list_elem *next;     /* Next list element. */
     struct thread *waiting_thread;  //POOJITH store threads
+    struct lock *hold_lock;       //POOJITH store locks
   };
 
 /* List. */
@@ -160,6 +161,7 @@ bool list_empty (struct list *);
 /* Miscellaneous. */
 void list_reverse (struct list *);
 //POOJITH
+bool check_sleep_time(struct list_elem *,struct list_elem *,void *);
 bool check_priority(struct list_elem *,struct list_elem *,void *);
 bool check_priority_lock(struct list_elem *,struct list_elem *,void *);
 

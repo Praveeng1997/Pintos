@@ -4,9 +4,11 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-/* List of processes in THREAD_READY state, that is, processes
-   that are ready to run but not actually running. */
-static struct list ready_list;
+/* Random value for struct thread's `magic' member.
+   Used to detect stack overflow.  See the big comment at the top
+   of thread.h for details. */
+#define THREAD_MAGIC 0xcd6abf4b
+
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -91,13 +93,13 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    // int def_priority;                   //priority of the thread when created
+    int def_priority;                   //priority of the thread when created
     struct list_elem allelem;           /* List element for all threads list. */
-    int sleep_time;                     /*Amount of time to sleep*/ 
+    int64_t wakeup_time;                     /*Amount of time to sleep*/ 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     //  struct list_elem lockelem;          //list element for locks
-
+    struct list lock_holder;            //list for storing locks in order
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -135,6 +137,9 @@ void thread_yield (void);
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
+void thread_wakeup_check(void);
+void insert_sleep_list(struct list_elem*);
+
 int thread_get_priority (void);
 void thread_set_priority (int);
 
@@ -143,6 +148,8 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 void list_reinsert_ordered(struct list_elem*);
+void call_schedule(void);
+bool function_ready_list();
 
 #endif /* threads/thread.h */
 

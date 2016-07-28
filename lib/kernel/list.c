@@ -452,12 +452,14 @@ list_insert_ordered (struct list *list, struct list_elem *elem,
   ASSERT (list != NULL);
   ASSERT (elem != NULL);
   ASSERT (less != NULL);
-
+  
+  // msg("---------------");
   for (e = list_begin (list); e != list_end (list); e = list_next (e))
-    /*    if(e == NULL)
-	  msg("wrong here");*/
+    { /*   if(e == NULL)*/
+      //	  msg("count");
     if (less (elem, e, aux))
       break;
+    }
   return list_insert (e, elem);
 }
 
@@ -532,12 +534,25 @@ bool check_priority(struct list_elem *a,struct list_elem *b,void * aux)
 {
   struct thread *x=list_entry(a,struct thread,elem);
   struct thread *y=list_entry(b,struct thread,elem);
-  if(x->priority >= y->priority)
+  //  msg("wake up time %d",x->wakeup_time);
+  // if(x->wakeup_time == -1 )
+  // {
+      if(x->priority >= y->priority)
+	{
+	  return(1);
+	}
+      else 
+	return(0);
+      //}
+  /* else
     {
-      return(1);
-    }
-  else 
-    return(0);
+      if(x->wakeup_time < y->wakeup_time)
+      {
+	return(1);
+      }
+      else 
+	return(0);
+	}*/
 }
 /*POOJITH Function to check the priority and return a 1 if a>b*/
 //for lockelem
@@ -551,4 +566,16 @@ bool check_priority_lock(struct list_elem *a,struct list_elem *b,void * aux)
     }
   else 
     return(0);
+}
+/*POOJITH Function to check the priority and return a 1 if a>b*/
+bool check_sleep_time(struct list_elem *a,struct list_elem *b,void * aux)
+{
+  struct thread *x=list_entry(a,struct thread,elem);
+  struct thread *y=list_entry(b,struct thread,elem);
+      if(x->wakeup_time < y->wakeup_time)
+      {
+	return(1);
+      }
+    else 
+      return(0);
 }

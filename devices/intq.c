@@ -110,6 +110,8 @@ signal (struct intq *q UNUSED, struct thread **waiter)
   if (*waiter != NULL) 
     {
       thread_unblock (*waiter);
+       if(!intr_context())
+    thread_yield();
       *waiter = NULL;
     }
 }
